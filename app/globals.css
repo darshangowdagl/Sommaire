@@ -154,3 +154,7 @@
     max-width: 1400px;
   }
 }
+
+html {
+  scroll-behavior: smooth;
+}

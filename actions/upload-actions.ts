@@ -32,70 +32,79 @@ export async function generatePdfSummary(
   if (!uploadResponse) {
     return {
       success: false,
-      message: "File Upload failed",
+      message: "File upload failed.",
       data: null,
     };
   }
+
   const {
     serverData: {
       userId,
       file: { url: pdfUrl, name: fileName },
     },
   } = uploadResponse[0];
+
   if (!pdfUrl) {
     return {
       success: false,
-      message: "File Upload failed",
+      message: "File URL not found after upload.",
       data: null,
     };
   }
 
   try {
     const pdfText = await fetchAndExtractPdfText(pdfUrl);
-    console.log({ pdfText });
-
     let summary;
+
     try {
-      summary = await generateSummaryFromOpenAI(pdfText);
-      console.log({ summary });
-    } catch (error) {
-      console.log(error);
-      //call gemini
-      if (error instanceof Error && error.message === "RATE_LIMIT_EXCEEDED") {
-        try {
-          summary = await generateSummaryFromGemini(pdfText);
-        } catch (geminiError) {
-          console.error(
-            "GEmini API failed after OpenAI quota exceede",
-            geminiError
-          );
-          throw new Error(
-            "Failed to generate summary with available AI providers"
-          );
-        }
+      // First attempt: Gemini
+      summary = await generateSummaryFromGemini(pdfText);
+      console.log("Summary generated with Gemini.");
+    } catch (geminiError) {
+      console.error(
+        "Gemini API failed, attempting fallback to OpenAI:",
+        geminiError
+      );
+
+      // Fallback attempt: OpenAI (triggered by any Gemini failure)
+      try {
+        summary = await generateSummaryFromOpenAI(pdfText);
+        console.log("Summary generated with OpenAI fallback.");
+      } catch (openAiError) {
+        // If the fallback also fails, log it, but don't throw.
+        // The `!summary` check below will handle the final failure.
+        console.error("OpenAI API fallback also failed:", openAiError);
       }
     }
+
+    // This central check correctly handles all failure scenarios
     if (!summary) {
       return {
         success: false,
-        message: "Fileed to generate summary",
+        message: "Failed to generate summary from all available AI providers.",
         data: null,
       };
     }
+
     const formattedFileName = formatFileNameAsTitle(fileName);
 
     return {
       success: true,
-      message: "Summary generated successfully",
+      message: "Summary generated successfully.",
       data: {
         title: formattedFileName,
         summary,
       },
     };
   } catch (err) {
+    console.error(
+      "An unexpected error occurred during summary generation:",
+      err
+    );
     return {
       success: false,
-      message: "File Upload failed",
+      // Provide a more accurate error message
+      message: "An unexpected error occurred. Please try again.",
       data: null,
     };
   }
@@ -111,18 +120,19 @@ export async function savePdfSummary({
   //sql inserting pdf summary
   try {
     const sql = await getDbConnection();
-    await sql`INSERT INTO pdf_summaries(user_id, 
-    original_file_url, 
-    summary_text, 
-    title, 
-    file_name
+    const [savedSummary] = await sql`INSERT INTO pdf_summaries(user_id, 
+      original_file_url, 
+      summary_text, 
+      title, 
+      file_name
     ) VALUES (
       ${userId},
       ${fileUrl},
       ${summary},
       ${title},
       ${fileName}
-    );`;
+    )RETURNING id, summary_text;`;
+    return savedSummary;
   } catch (error) {
     console.error("Error saving the PDF summary");
     throw error;
