@@ -41,7 +41,7 @@ export default function UploadForm() {
       });
     },
     onUploadBegin: ({ file }) => {
-      console.log("upload has begun for", file);
+      console.log("upload has begun for : ", file);
     },
   });
 
@@ -70,12 +70,11 @@ export default function UploadForm() {
       });
 
       const resp = await startUpload([file]);
-      if (!resp) {
+      if (!resp || resp.length === 0) {
         toast.error("Something went wrong", {
           description: "Please use a different file.",
         });
         setIsLoading(false);
-
         return;
       }
 

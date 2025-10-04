@@ -1,7 +1,6 @@
 import { SUMMARY_SYSTEM_PROMPT } from "@/utils/prompts";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { error } from "console";
-import { text } from "stream/consumers";
+
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 

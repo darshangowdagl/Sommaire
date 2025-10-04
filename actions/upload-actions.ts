@@ -17,17 +17,15 @@ interface pdfSummaryType {
 }
 
 export async function generatePdfSummary(
-  uploadResponse: [
-    {
-      serverData: {
-        userId: string;
-        file: {
-          url: string;
-          name: string;
-        };
+  uploadResponse: {
+    serverData: {
+      userId: string;
+      file: {
+        url: string;
+        name: string;
       };
-    }
-  ]
+    };
+  }[]
 ) {
   if (!uploadResponse) {
     return {
